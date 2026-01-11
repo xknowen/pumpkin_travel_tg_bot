@@ -17,33 +17,18 @@ func NewFormService(bot *tgbotapi.BotAPI) *FormService {
 	return &FormService{bot: bot}
 }
 
-func (fs *FormService) SendToManager(preferences models.TravelPreferences, userInfo models.UserInfo) error {
-	logrus.Infof("Попытка отправить заявку менеджеру. ManagerChatID: %d", config.AppConfig.ManagerChatID)
-
+func (fs *FormService) SendToManager(request models.TravelRequest, userInfo models.UserInfo) error {
 	if config.AppConfig.ManagerChatID == 0 {
-		logrus.Error("MANAGER_CHAT_ID не задан или равен 0")
 		return fmt.Errorf("MANAGER_CHAT_ID не задан")
 	}
 
-	messageText := preferences.ToFormattedString(userInfo)
-
-	logrus.Infof("Текст заявки для менеджера:\n%s", messageText)
+	messageText := request.ToFormattedString(userInfo)
 
 	msg := tgbotapi.NewMessage(config.AppConfig.ManagerChatID, messageText)
-	msg.ParseMode = "Markdown"
-
-	logrus.Info("Отправка сообщения менеджеру...")
+	msg.ParseMode = "HTML"
 
 	if _, err := fs.bot.Send(msg); err != nil {
 		logrus.WithError(err).Error("Ошибка при отправке заявки менеджеру")
-
-		// Проверим конкретную ошибку
-		if err.Error() == "Forbidden: bot was blocked by the user" {
-			logrus.Error("Бот заблокирован пользователем (менеджером)")
-		} else if err.Error() == "Bad Request: chat not found" {
-			logrus.Error("Чат с менеджером не найден. Проверьте ManagerChatID")
-		}
-
 		return err
 	}
 

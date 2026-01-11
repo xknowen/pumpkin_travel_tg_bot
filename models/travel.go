@@ -6,16 +6,19 @@ import (
 	"time"
 )
 
-type TravelPreferences struct {
-	DestinationType     string    `json:"destination_type"`
-	Countries           []string  `json:"countries"`
-	BudgetPerPerson     string    `json:"budget_per_person"`
-	TravelersCount      string    `json:"travelers_count"`
-	TravelDates         string    `json:"travel_dates"`
-	Duration            string    `json:"duration"`
-	AccommodationType   string    `json:"accommodation_type"`
-	SpecialRequirements string    `json:"special_requirements"`
-	CreatedAt           time.Time `json:"created_at"`
+type TravelRequest struct {
+	Destination      string    `json:"destination"`
+	DepartureCity    string    `json:"departure_city"`
+	TravelDates      string    `json:"travel_dates"`
+	Duration         string    `json:"duration"`
+	Travelers        string    `json:"travelers"`
+	ChildAge         string    `json:"child_age"`
+	Budget           string    `json:"budget"`
+	VacationType     string    `json:"vacation_type"`
+	HotelLevel       string    `json:"hotel_level"`
+	MealPlan         string    `json:"meal_plan"`
+	ImportantFactors string    `json:"important_factors"`
+	CreatedAt        time.Time `json:"created_at"`
 }
 
 type UserInfo struct {
@@ -25,31 +28,16 @@ type UserInfo struct {
 	Username  string `json:"username"`
 }
 
-// Функция для экранирования Markdown символов
-func escapeMarkdown(text string) string {
-	// Экранируем специальные символы Markdown
+func escapeHTML(text string) string {
 	replacements := []struct {
 		old string
 		new string
 	}{
-		{"_", "\\_"},
-		{"*", "\\*"},
-		{"[", "\\["},
-		{"]", "\\]"},
-		{"(", "\\("},
-		{")", "\\)"},
-		{"~", "\\~"},
-		{"`", "\\`"},
-		{">", "\\>"},
-		{"#", "\\#"},
-		{"+", "\\+"},
-		{"-", "\\-"},
-		{"=", "\\="},
-		{"|", "\\|"},
-		{"{", "\\{"},
-		{"}", "\\}"},
-		{".", "\\."},
-		{"!", "\\!"},
+		{"&", "&amp;"},
+		{"<", "&lt;"},
+		{">", "&gt;"},
+		{"\"", "&quot;"},
+		{"'", "&#39;"},
 	}
 
 	result := text
@@ -60,53 +48,82 @@ func escapeMarkdown(text string) string {
 	return result
 }
 
-func (tp *TravelPreferences) ToFormattedString(userInfo UserInfo) string {
+func (tr *TravelRequest) ToFormattedString(userInfo UserInfo) string {
 	var builder strings.Builder
 
-	builder.WriteString("🗺 *Новая заявка от клиента\\!*\n")
+	builder.WriteString("<b>🌴 НОВАЯ ЗАЯВКА НА ПОДБОР ТУРА</b>\n\n")
 
-	// Экранируем информацию о пользователе
-	firstName := escapeMarkdown(userInfo.FirstName)
-	lastName := escapeMarkdown(userInfo.LastName)
-	username := ""
+	// Информация о клиенте (для менеджера)
+	builder.WriteString("<b>👤 Клиент:</b> ")
+	if userInfo.FirstName != "" || userInfo.LastName != "" {
+		builder.WriteString(escapeHTML(userInfo.FirstName + " " + userInfo.LastName))
+	}
 	if userInfo.Username != "" {
-		username = escapeMarkdown(userInfo.Username)
+		builder.WriteString(fmt.Sprintf("\n<b>📱 @:</b> %s", escapeHTML(userInfo.Username)))
+	}
+	builder.WriteString(fmt.Sprintf("\n<b>🆔 ID:</b> %d\n", userInfo.ID))
+
+	builder.WriteString("\n<b>═══════════════════════════════════</b>\n\n")
+
+	// Данные заявки
+	writeFieldHTML(&builder, "1️⃣ Куда планируете поездку?", tr.Destination)
+	writeFieldHTML(&builder, "2️⃣ Город вылета", tr.DepartureCity)
+	writeFieldHTML(&builder, "3️⃣ Даты поездки", tr.TravelDates)
+	writeFieldHTML(&builder, "4️⃣ Длительность отдыха", tr.Duration)
+	writeFieldHTML(&builder, "5️⃣ Количество туристов", tr.Travelers)
+
+	if tr.ChildAge != "" && tr.ChildAge != "Нет детей" {
+		writeFieldHTML(&builder, "   Возраст ребенка", tr.ChildAge)
 	}
 
-	builder.WriteString(fmt.Sprintf("👤 *Клиент:* %s %s\n", firstName, lastName))
+	writeFieldHTML(&builder, "6️⃣ Бюджет на всех", tr.Budget)
+	writeFieldHTML(&builder, "7️⃣ Тип отдыха", tr.VacationType)
+	writeFieldHTML(&builder, "8️⃣ Уровень отеля", tr.HotelLevel)
+	writeFieldHTML(&builder, "9️⃣ Тип питания", tr.MealPlan)
+	writeFieldHTML(&builder, "🔟 Принципиально важно", tr.ImportantFactors)
 
-	if username != "" {
-		builder.WriteString(fmt.Sprintf("📱 *Username:* @%s\n", username))
-	}
-
-	builder.WriteString(fmt.Sprintf("🆔 *ID:* %d\n", userInfo.ID))
-	builder.WriteString("*===============================*\n")
-
-	// Экранируем все поля
-	writeField(&builder, "Тип отдыха", escapeMarkdown(tp.DestinationType))
-	writeField(&builder, "Страны/Направления", escapeMarkdown(strings.Join(tp.Countries, ", ")))
-	writeField(&builder, "Бюджет на человека", escapeMarkdown(tp.BudgetPerPerson))
-	writeField(&builder, "Количество путешественников", escapeMarkdown(tp.TravelersCount))
-	writeField(&builder, "Даты/Период поездки", escapeMarkdown(tp.TravelDates))
-	writeField(&builder, "Продолжительность", escapeMarkdown(tp.Duration))
-	writeField(&builder, "Тип проживания", escapeMarkdown(tp.AccommodationType))
-
-	specialReqs := tp.SpecialRequirements
-	if specialReqs == "" {
-		specialReqs = "Нет"
-	}
-	writeField(&builder, "Особые пожелания", escapeMarkdown(specialReqs))
-
-	builder.WriteString("*===============================*\n")
-	builder.WriteString(fmt.Sprintf("*Время подачи заявки:* %s\n",
-		tp.CreatedAt.Format("02\\.01\\.2006 15:04"))) // Экранируем точки в дате
+	builder.WriteString("\n<b>═══════════════════════════════════</b>\n")
+	builder.WriteString(fmt.Sprintf("<b>📅 Заявка создана:</b> %s\n",
+		tr.CreatedAt.Format("02.01.2006 в 15:04")))
 
 	return builder.String()
 }
 
-func writeField(builder *strings.Builder, name, value string) {
-	if value == "" || value == "Нет" || value == "Нет особых" {
+func (tr *TravelRequest) ToClientPreview() string {
+	var builder strings.Builder
+
+	builder.WriteString("<b>🌴 ВАША ЗАЯВКА НА ПОДБОР ТУРА</b>\n\n")
+
+	builder.WriteString("<b>═══════════════════════════════════</b>\n\n")
+
+	writeFieldHTML(&builder, "1️⃣ Куда планируете поездку?", tr.Destination)
+	writeFieldHTML(&builder, "2️⃣ Город вылета", tr.DepartureCity)
+	writeFieldHTML(&builder, "3️⃣ Даты поездки", tr.TravelDates)
+	writeFieldHTML(&builder, "4️⃣ Длительность отдыха", tr.Duration)
+	writeFieldHTML(&builder, "5️⃣ Количество туристов", tr.Travelers)
+
+	if tr.ChildAge != "" && tr.ChildAge != "Нет детей" {
+		writeFieldHTML(&builder, "   Возраст ребенка", tr.ChildAge)
+	}
+
+	writeFieldHTML(&builder, "6️⃣ Бюджет на всех", tr.Budget)
+	writeFieldHTML(&builder, "7️⃣ Тип отдыха", tr.VacationType)
+	writeFieldHTML(&builder, "8️⃣ Уровень отеля", tr.HotelLevel)
+	writeFieldHTML(&builder, "9️⃣ Тип питания", tr.MealPlan)
+	writeFieldHTML(&builder, "🔟 Принципиально важно", tr.ImportantFactors)
+
+	builder.WriteString("\n<b>═══════════════════════════════════</b>\n")
+	builder.WriteString(fmt.Sprintf("<b>📅 Заявка создана:</b> %s\n",
+		tr.CreatedAt.Format("02.01.2006 в 15:04")))
+
+	return builder.String()
+}
+
+func writeFieldHTML(builder *strings.Builder, name, value string) {
+	if value == "" {
 		value = "Не указано"
 	}
-	builder.WriteString(fmt.Sprintf("*%s:* %s\n", name, value))
+	builder.WriteString(fmt.Sprintf("<b>%s</b>\n%s\n\n",
+		escapeHTML(name),
+		escapeHTML(value)))
 }

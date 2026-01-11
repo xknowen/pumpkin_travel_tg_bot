@@ -17,7 +17,6 @@ type Config struct {
 var AppConfig Config
 
 func Load() error {
-	// Загружаем .env файл
 	if err := godotenv.Load(); err != nil {
 		logrus.Warn("Файл .env не найден, используются переменные окружения")
 	}
@@ -25,7 +24,7 @@ func Load() error {
 	AppConfig = Config{
 		BotToken:      getEnv("BOT_TOKEN", ""),
 		ManagerChatID: getEnvAsInt64("MANAGER_CHAT_ID", 0),
-		DebugMode:     getEnvAsBool("DEBUG_MODE", true), // Включаем debug по умолчанию
+		DebugMode:     getEnvAsBool("DEBUG_MODE", false),
 	}
 
 	logrus.Infof("Загружена конфигурация: ManagerChatID=%d, DebugMode=%v",
@@ -48,7 +47,6 @@ func validate() error {
 	return nil
 }
 
-// Вспомогательные функции для чтения переменных окружения
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
